@@ -91,10 +91,10 @@ function totalScoreFromTime(time, rawScore = 99999) {
     .aroundtime, .unixtime{
         font-size: 13px;
     }
-    table,td {
+    #scoretable,#scoretable td {
         border: 1px solid black;
     }
-    table {
+    #scoretable {
         width: 100%;
     }
     .nowclock {
@@ -152,9 +152,21 @@ function totalScoreFromTime(time, rawScore = 99999) {
     <div>
         取得:<span id="calctime"></span><br />
     </div>
+    <table style="margin: auto;">
+        <tbody>
+            <tr>
+                <td>スコア予測秒</td>
+                <td><input id="score_seconds" type="number" value="3600" onchange="tableWrite()" /></td>
+            </tr>
+            <tr>
+                <td>前後表示秒</td>
+                <td><input id="offsets" type="number" value="10" onchange="tableWrite()" /></td>
+            </tr>
+        </tbody>
+    </table>
 </header>
 <div>
-    <table>
+    <table id="scoretable">
         <tbody id="scorearea"></tbody>
     </table>
 </div>
@@ -162,7 +174,7 @@ function totalScoreFromTime(time, rawScore = 99999) {
 <script type="text/javascript">
 <!--
 function scoreToString(score) {
-    var padding = "";
+    let padding = "";
     if (score == 100000) {
         padding += score;
         padding = padding.slice(0,3) + "." + padding.slice(-3);
@@ -173,40 +185,52 @@ function scoreToString(score) {
     return padding;
 };
 
+function scorewithAround(id) {
+    let result_str = "";
+    result_str += '<div class="' + id + '_aroundbox" style="display: none;">'
+    let offsetvalue = document.getElementById("offsets").value;
+    for (let i = -1 * offsetvalue; i < 0; i++) {
+        result_str += '<span class="aroundtime">' + scoreToString(totalScoreFromTime(id + i, 99999)) + "(Offset:" + i + ")" + '</span><br />';
+    }
+    result_str += '</div>'
+    result_str += '<div class="score" onclick="expandScore(' + id + ')">' + scoreToString(totalScoreFromTime(id, 99999)) + '</div>' + '<br />';
+    result_str += '<div class="' + id + '_aroundbox" style="display: none;">'
+    for (let i = 1; i <= offsetvalue; i++) {
+        result_str += '<span class="aroundtime">' + scoreToString(totalScoreFromTime(id + i, 99999)) + "(Offset:" + i + ")" + '</span><br />';
+    }
+    result_str += '</div>'
+    return result_str
+};
+
 function expandScore(id) {
-    var scorediv = document.getElementById(id + "_score");
-    if (scorediv.innerText.split("\n").length != 1) {
-        scorediv.innerHTML = '<div class="score" onclick="expandScore(' + id + ')">' + scoreToString(totalScoreFromTime(id, 99999)) + '</div>';
-        return;
-    }
-    scorediv.innerHTML = "";
-    for (var i = -10; i < 0; i++) {
-        scorediv.innerHTML += '<span class="aroundtime">' + scoreToString(totalScoreFromTime(id+i, 99999)) + "(Offset:" + i + ")" + '</span><br />';
-    }
-    scorediv.innerHTML += '<div class="score" onclick="expandScore(' + id + ')">' + scoreToString(totalScoreFromTime(id, 99999)) + '</div>' + '<br />';
-    for (var i = 1; i <= 10; i++) {
-        scorediv.innerHTML += '<span class="aroundtime">' + scoreToString(totalScoreFromTime(id+i, 99999)) + "(Offset:" + i + ")" + '</span><br />';
+    let aroundboxes = document.getElementsByClassName(id + "_aroundbox");
+    for (let i = 0; i < aroundboxes.length; i++) {
+        aroundboxes[i].style.display = aroundboxes[i].style.display == "none" ? "block" : "none";
     }
 };
 
-function expandTime(id) {
-    var timediv = document.getElementById(id + "_time");
+function timewithUnix(id) {
+    let result_str = "";
     let dateTime = new Date((id) * 1000);
-    if (timediv.innerText.split("\n").length != 1) {
-        timediv.innerHTML = '<div class="time" onclick="expandTime(' + id + ')">' + dateTime.toLocaleTimeString() + '</div>' + '<div class="eta" id="'+ id + '_eta"></div>';
-        prevunixtime = 0;
-        return;
-    }
-    timediv.innerHTML += '<br /><span class="unixtime">' + id + '</span>';
+    result_str += '<div class="time" onclick="expandTime(' + id + ')">' + dateTime.toLocaleTimeString() + '</div>' + '<div class="eta" id="' + id + '_eta"></div>';
+    result_str += '<div class="' + id + '_unix" style="display: none;"><span class="unixtime">' + id + '</span></div>';
+    return result_str;
+};
+
+function expandTime(id) {
+    let unixboxes = document.getElementsByClassName(id + "_unix");
+    for (let i = 0; i < unixboxes.length; i++) {
+        unixboxes[i].style.display = unixboxes[i].style.display == "none" ? "block" : "none";
+    };
 };
 
 var prevunixtime = 0;
 
 function showClock() {
-   var nowTime = new Date();
-   var unixtime = Math.floor(nowTime.getTime() / 1000);
+   let nowTime = new Date();
+   let unixtime = Math.floor(nowTime.getTime() / 1000);
    if (unixtime == prevunixtime) return;
-   var msg = nowTime.toLocaleTimeString();
+   let msg = nowTime.toLocaleTimeString();
    document.getElementById("RealtimeClockArea").innerHTML = msg;
    etaReload(unixtime);
    prevunixtime = unixtime;
@@ -215,7 +239,7 @@ function showClock() {
 function etaReload(unixtime) {
     Array.from(document.getElementsByClassName("eta")).forEach(
     function (elem) {
-        var id = parseInt(elem.id.split("_")[0]);
+        let id = parseInt(elem.id.split("_")[0]);
         n = id-unixtime;
         elem.innerHTML = '(' + '<div class="sign">' + (n<0?"-":"+") + '</div>' + '<div class="min">' + Math.abs(Math.trunc(n/60)) + '</div>' + "'" + '<div class="sec">' + ('00' + Math.abs(n%60)).slice(-2) + '</div>' + "''" + ')';
     });
@@ -226,15 +250,21 @@ var scoreview = document.getElementById("scorearea");
 var date = new Date();
 var unixtime = Math.floor( date.getTime() / 1000 );
 document.getElementById("calctime").innerText = date.toString();
-for (var i = 0; i < 3600; i++) {
-    var score = totalScoreFromTime(unixtime+i, 99999);
-    if (score > 99990) {
-        var padding = scoreToString(score);
-        let dateTime = new Date((unixtime+i) * 1000);
-        scoreview.innerHTML += '<tr class="article countstop">' +
-            '<td class="scorecell" id="' + (unixtime+i) + '_score">' + '<div class="score" onclick="expandScore(' + (unixtime+i) + ')">' + padding + '</div>' + '</td>' + 
-            '<td class="timecell" id="' + (unixtime+i) + '_time">' + '<div class="time" onclick="expandTime(' + (unixtime+i) + ')">' + dateTime.toLocaleTimeString() + '</div>' + '<div class="eta" id="'+ (unixtime+i) + '_eta"></div>' + '</td>' + 
-            '</tr>';
+tableWrite();
+
+function tableWrite() {
+    prevunixtime = 0;
+    scoreview.innerHTML = "";
+    for (var i = 0; i < document.getElementById("score_seconds").value; i++) {
+        var score = totalScoreFromTime(unixtime+i, 99999);
+        if (score > 99990) {
+            var padding = scoreToString(score);
+            let dateTime = new Date((unixtime+i) * 1000);
+            scoreview.innerHTML += '<tr class="article countstop">' +
+                '<td class="scorecell" id="' + (unixtime + i) + '_score">' + scorewithAround(unixtime + i) + '</td>' +
+                '<td class="timecell" id="' + (unixtime + i) + '_time">' + timewithUnix(unixtime + i) + '</td>' +
+                '</tr>';
+        };
     };
 };
 -->
