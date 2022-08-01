@@ -1,0 +1,237 @@
+﻿<html>
+<head>
+<script type="text/javascript">
+<!--
+/**
+ * Reentrant random function (rand_r)
+ * @param seed Seed value
+ * @return Random and new seed
+ */
+function rand_r(seed) {
+  let next = seed;
+  let result;
+
+  next = Math.imul(next, 1103515245) >>> 0;
+  next += 12345;
+  result = Math.floor(next / 65536) % 2048;
+
+  next = Math.imul(next, 1103515245) >>> 0;
+  next += 12345;
+  result <<= 10;
+  result ^= Math.floor(next / 65536) % 1024;
+
+  next = Math.imul(next, 1103515245) >>> 0;
+  next += 12345;
+  result <<= 10;
+  result ^= Math.floor(next / 65536) % 1024;
+
+  return { random: result, newSeed: next };
+};
+
+class AppService {
+    static kRandomizeThreshold = 99000;
+    static k100Threshold = 99990;
+    static k100Probability = 500;
+}
+
+/**
+ * Total score from time
+ * @param time Time (Unix time)
+ * @param rawScore Raw score
+ * @return Total score
+ */
+function totalScoreFromTime(time, rawScore = 99999) {
+  time = time + 32400;
+  let result = rawScore;
+  if (AppService.kRandomizeThreshold < result) {
+    const randomResult = rand_r(time);
+    result =
+      ((randomResult.random + time) % (rawScore - 99000)) +
+      99000;
+    if (99990 < result) {
+      const randomResult = rand_r(time);
+      const judgement = (randomResult.random + time) % 1000;
+      if (judgement < 500) {
+        result = 100000;
+      }
+    }
+  }
+ return result;
+}
+-->
+</script>
+<style type="text/css">
+    body {
+        background-color : #e0e0e0;
+        margin: 0;
+    }
+    h1 {
+        background-color: #ffb700;
+        text-shadow: 1px 1px 0px #ddd;
+    }
+    .content { 
+        text-align: center;
+        max-width: 720px;
+        min-width: 360px;
+        margin: auto;
+        background-color: white;
+    }
+    .scorecell {
+        width: 35%;
+        margin: 0 auto 0 0;
+    }
+    .timecell {
+        width: 65%;
+        margin: 0 0 0 auto;
+    }
+    .article {
+        font-size: 24px;
+        max-width: 720px;
+    }
+    .aroundtime, .unixtime{
+        font-size: 13px;
+    }
+    table,td {
+        border: 1px solid black;
+    }
+    table {
+        width: 100%;
+    }
+    .nowclock {
+        font-size: 32px;
+        position: fixed;
+        width: 720px;
+        background-color: lightcoral;
+    }
+    .clocksize {
+        height: 48px;
+        max-width: 720px;
+        margin: auto;
+    }
+    .time {
+        display:inline-block;
+        width: 50%;
+    }
+    .eta {
+        display:inline-block;
+        text-align: right;
+        min-width: 122px;
+        width: 50%;
+        margin: 0 0 0 auto;
+    }
+    .sign {
+        display: inline-block;
+        min-width: 16px;
+    }
+    .min {
+        display: inline-block;
+        min-width: 30px;
+    }
+    .sec {
+        display: inline-block;
+        min-width: 30px;
+    }
+    .score {
+        display: inline-block;
+        min-width: 100px;
+        text-align: right;
+    }
+</style>
+<title>演奏中止オフライン</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+</head>
+<body>
+<div class="clocksize">
+    <div class="nowclock">
+        現在時刻：<span id="RealtimeClockArea"></span>
+    </div>
+</div>
+<div class="content">
+<header>
+    <h1>演奏中止オフライン</h1>
+    <div>
+        取得:<span id="calctime"></span><br />
+    </div>
+</header>
+<div>
+    <table>
+        <tbody id="scorearea"></tbody>
+    </table>
+</div>
+</div>
+<script type="text/javascript">
+<!--
+function scoreToString(score) {
+    var padding = "";
+    if (score == 100000) {
+        padding += score;
+        padding = padding.slice(0,3) + "." + padding.slice(-3);
+    } else {
+        padding += score;
+        padding = padding.slice(0,2) + "." + padding.slice(-3);
+    }
+    return padding;
+};
+
+function expandScore(id) {
+    var scorediv = document.getElementById(id + "_score");
+    if (scorediv.innerText.split("\n").length != 1) {
+        scorediv.innerHTML = '<div class="score" onclick="expandScore(' + id + ')">' + scoreToString(totalScoreFromTime(id, 99999)) + '</div>';
+        return;
+    }
+    scorediv.innerHTML = "";
+    for (var i = -10; i < 0; i++) {
+        scorediv.innerHTML += '<span class="aroundtime">' + scoreToString(totalScoreFromTime(id+i, 99999)) + "(Offset:" + i + ")" + '</span><br />';
+    }
+    scorediv.innerHTML += '<div class="score" onclick="expandScore(' + id + ')">' + scoreToString(totalScoreFromTime(id, 99999)) + '</div>' + '<br />';
+    for (var i = 1; i <= 10; i++) {
+        scorediv.innerHTML += '<span class="aroundtime">' + scoreToString(totalScoreFromTime(id+i, 99999)) + "(Offset:" + i + ")" + '</span><br />';
+    }
+};
+
+function expandTime(id) {
+    var timediv = document.getElementById(id + "_time");
+    let dateTime = new Date((id) * 1000);
+    if (timediv.innerText.split("\n").length != 1) {
+        timediv.innerHTML = '<div class="time" onclick="expandTime(' + id + ')">' + dateTime.toLocaleTimeString() + '</div>' + '<div class="eta" id="'+ id + '_eta"></div>';
+        return;
+    }
+    timediv.innerHTML += '<br /><span class="unixtime">' + id + '</span>'; 
+};
+
+function showClock() {
+   var nowTime = new Date();
+   var msg = nowTime.toLocaleTimeString();
+   document.getElementById("RealtimeClockArea").innerHTML = msg;
+   etaReload(Math.floor( nowTime.getTime() / 1000 ));
+}
+
+function etaReload(unixtime) {
+    Array.from(document.getElementsByClassName("eta")).forEach(
+    function (elem) {
+        var id = parseInt(elem.id.split("_")[0]);
+        n = id-unixtime;
+        elem.innerHTML = '(' + '<div class="sign">' + (n<0?"-":"+") + '</div>' + '<div class="min">' + Math.abs(Math.trunc(n/60)) + '</div>' + "'" + '<div class="sec">' + ('00' + Math.abs(n%60)).slice(-2) + '</div>' + "''" + ')';
+    });
+}
+setInterval('showClock()',100);
+
+var scoreview = document.getElementById("scorearea");
+var date = new Date();
+var unixtime = Math.floor( date.getTime() / 1000 );
+document.getElementById("calctime").innerText = date.toString();
+for (var i = 0; i < 3600; i++) {
+    var score = totalScoreFromTime(unixtime+i, 99999);
+    if (score > 99990) {
+        var padding = scoreToString(score);
+        let dateTime = new Date((unixtime+i) * 1000);
+        scoreview.innerHTML += '<tr class="article countstop">' +
+            '<td class="scorecell" id="' + (unixtime+i) + '_score">' + '<div class="score" onclick="expandScore(' + (unixtime+i) + ')">' + padding + '</div>' + '</td>' + 
+            '<td class="timecell" id="' + (unixtime+i) + '_time">' + '<div class="time" onclick="expandTime(' + (unixtime+i) + ')">' + dateTime.toLocaleTimeString() + '</div>' + '<div class="eta" id="'+ (unixtime+i) + '_eta"></div>' + '</td>' + 
+            '</tr>';
+    };
+};
+-->
+</script>
+</body>
+</html>
