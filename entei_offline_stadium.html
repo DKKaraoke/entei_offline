@@ -194,16 +194,22 @@ function expandTime(id) {
     let dateTime = new Date((id) * 1000);
     if (timediv.innerText.split("\n").length != 1) {
         timediv.innerHTML = '<div class="time" onclick="expandTime(' + id + ')">' + dateTime.toLocaleTimeString() + '</div>' + '<div class="eta" id="'+ id + '_eta"></div>';
+        prevunixtime = 0;
         return;
     }
-    timediv.innerHTML += '<br /><span class="unixtime">' + id + '</span>'; 
+    timediv.innerHTML += '<br /><span class="unixtime">' + id + '</span>';
 };
+
+var prevunixtime = 0;
 
 function showClock() {
    var nowTime = new Date();
+   var unixtime = Math.floor(nowTime.getTime() / 1000);
+   if (unixtime == prevunixtime) return;
    var msg = nowTime.toLocaleTimeString();
    document.getElementById("RealtimeClockArea").innerHTML = msg;
-   etaReload(Math.floor( nowTime.getTime() / 1000 ));
+   etaReload(unixtime);
+   prevunixtime = unixtime;
 }
 
 function etaReload(unixtime) {
